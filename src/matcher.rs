@@ -1,35 +1,46 @@
-use crate::cli::{Args, Kind};
-use std::{fs::Metadata, path::Path};
+use crate::{
+    cli::{Args, Kind},
+    glob::Pattern,
+};
+use std::{ffi::OsStr, fs::Metadata, os::unix::ffi::OsStrExt};
 
-pub fn matches(args: &Args, path: &Path, meta: &Metadata) -> bool {
-    if let Some(kind) = &args.kind {
-        match kind {
-            Kind::File => {
-                if !meta.is_file() {
-                    return false;
-                }
-            }
-            Kind::Dir => {
-                if !meta.is_dir() {
-                    return false;
-                }
-            }
-            Kind::Symlink => {
-                if !meta.is_symlink() {
-                    return false;
-                }
-            }
-        }
+pub struct Matcher {
+    name: Option<Pattern>,
+    kind: Option<Kind>,
+}
+
+impl Matcher {
+    pub fn from_args(args: &Args) -> anyhow::Result<Matcher> {
+        let Some(patt) = &args.name else {
+            return Ok(Matcher {
+                name: None,
+                kind: args.kind,
+            });
+        };
+
+        let pattern = Pattern::parse(patt.as_bytes());
+
+        Ok(Matcher {
+            name: Some(pattern),
+            kind: args.kind,
+        })
     }
 
-    if let Some(filename) = path.file_name() {
-        if let Some(name) = &args.name {
-            if name.as_str() != filename {
+    pub fn matches(&self, name: &OsStr, meta: &Metadata) -> bool {
+        if let Some(kind) = self.kind {
+            let kind_match = match kind {
+                Kind::File => meta.is_file(),
+                Kind::Dir => meta.is_dir(),
+                Kind::Symlink => meta.is_symlink(),
+            };
+            if !kind_match {
                 return false;
             }
         }
-    } else {
-        return false;
+
+        match &self.name {
+            Some(patt) => patt.matches(name.as_bytes()),
+            None => true,
+        }
     }
-    true
 }

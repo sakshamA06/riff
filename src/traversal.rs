@@ -1,10 +1,10 @@
-use std::fs::{read_dir, symlink_metadata, Metadata};
+use std::fs::{Metadata, read_dir, symlink_metadata};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
 use crate::cli::Args;
-use crate::matcher::matches;
+use crate::matcher::Matcher;
 
 pub fn run(args: &Args) -> Result<()> {
     let metadata = symlink_metadata(&args.root)
@@ -12,8 +12,11 @@ pub fn run(args: &Args) -> Result<()> {
 
     let mut stack = vec![(args.root.clone(), 0, metadata)];
 
+    let matcher = Matcher::from_args(args).context("Ill formed pattern")?;
+
     while let Some((path, depth, metadata)) = stack.pop() {
-        if matches(args, &path, &metadata) {
+        let name = path.file_name().unwrap_or(path.as_os_str());
+        if matcher.matches(name, &metadata) {
             println!("{}", path.display());
         }
 
