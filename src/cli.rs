@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
 
-// Simple find utility written in Rust.
+/// Simple find utility written in Rust.
 #[derive(Debug, Parser)]
 #[command(name = "riff", version, about)]
 pub struct Args {
